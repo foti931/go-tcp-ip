@@ -11,9 +11,9 @@ import (
 
 const devicePath = "/dev/net/tun"
 
-// ifreq is the small C-compatible request object passed to TUNSETIFF.
+// ifreq は TUNSETIFF ioctl に渡す Linux 用の request 構造体です。
 //
-// Linux expects roughly this C layout:
+// Linux kernel は、おおよそ次の C の struct ifreq と同じメモリ配置を期待します。
 //
 //	struct ifreq {
 //	    char  ifr_name[IFNAMSIZ];
@@ -21,41 +21,41 @@ const devicePath = "/dev/net/tun"
 //	    ...
 //	};
 //
-// We only use the interface name and flags. The padding keeps the Go struct
-// large enough for the kernel's ifreq layout on Linux.
+// この教材では interface 名と flags だけを使います。
+// _pad は kernel が読む ifreq のサイズに合わせるための詰め物です。
 type ifreq struct {
 	Name  [unix.IFNAMSIZ]byte
 	Flags uint16
 	_pad  [40 - unix.IFNAMSIZ - 2]byte
 }
 
-// Open connects this process to an existing TAP device such as tap0.
-// This file is complete from chapter 1; the protocol work starts above it.
+// Open は、このプロセスを tap0 のような TAP device に接続します。
+// 第1章ではこの関数を入口にして、TAP が Ethernet frame を返すことを確認します。
 func Open(name string) (*os.File, error) {
-	// /dev/net/tun is the control device for both TUN and TAP interfaces.
-	// Opening it gives us a file descriptor, but it is not attached to tap0 yet.
+	// /dev/net/tun は TUN/TAP 共通の制御 device です。
+	// open した直後の fd は、まだ tap0 には紐づいていません。
 	fd, err := unix.Open(devicePath, unix.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	// IFF_TAP means "give me Ethernet frames" instead of IP packets.
-	// IFF_NO_PI means "do not prepend Linux's 4-byte packet information header".
-	// With IFF_NO_PI, each Read returns bytes that start at the Ethernet header:
+	// IFF_TAP は「IP packet ではなく Ethernet frame を読み書きする」という指定です。
+	// IFF_NO_PI は Linux 独自の 4 byte packet information header を付けない指定です。
+	// これにより Read の結果は Ethernet header から始まります。
 	//
 	//	DstMAC(6) SrcMAC(6) EtherType(2) Payload(...)
 	req := ifreq{Flags: unix.IFF_TAP | unix.IFF_NO_PI}
 	copy(req.Name[:], name)
 
-	// TUNSETIFF binds this file descriptor to the named interface.
-	// unsafe.Pointer is used only here because ioctl requires passing the address
-	// of the C-compatible ifreq memory block to the kernel.
+	// TUNSETIFF は fd と指定した interface 名を結びつける ioctl です。
+	// ioctl は C 互換のメモリブロックのアドレスを kernel に渡す API なので、
+	// この 1 箇所だけ unsafe.Pointer を使います。
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&req))); errno != 0 {
 		_ = unix.Close(fd)
 		return nil, errno
 	}
 
-	// After TUNSETIFF succeeds, Read and Write on this os.File exchange Ethernet
-	// frames with tap0.
+	// ここから先は、この os.File に対する Read/Write が tap0 の Ethernet frame
+	// の受信/送信になります。
 	return os.NewFile(uintptr(fd), devicePath), nil
 }

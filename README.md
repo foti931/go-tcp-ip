@@ -15,11 +15,11 @@ git checkout final
 
 ## 進め方
 
-1. この branch で [docs/HANDS_ON.md](docs/HANDS_ON.md) を読む
+1. [docs/WORKBOOK.md](docs/WORKBOOK.md) を読む
 2. `internal/*` の TODO を章ごとに埋める
-3. 章ごとの確認コマンドを実行する
-4. 詰まったら `final` branch の同名 package を参照する
-5. `go test ./...` と Linux TAP 上の動作確認で進める
+3. `scripts/check-chapter.sh 02` のように章別チェックを実行する
+4. Linux TAP 上で `ping`, `nc` などの実機確認をする
+5. 詰まったら `final` branch の同名 package を参照する
 
 ## 最終ゴール
 
@@ -44,6 +44,8 @@ nc 192.168.100.2 8080
 - read/write loop
 - 各章の TODO と実装ヒント
 - 最初から通る最小テスト
+- 章ごとに失敗/成功を確認できる build tag 付きテスト
+- 章ごとのチェックコマンド `scripts/check-chapter.sh`
 
 そのため:
 
@@ -69,6 +71,18 @@ sudo ip tuntap add dev tap0 mode tap user "$USER"
 sudo ip addr add 192.168.100.1/24 dev tap0
 sudo ip link set tap0 up
 ```
+
+## 章別チェック
+
+例:
+
+```sh
+scripts/check-chapter.sh 02
+scripts/check-chapter.sh 03
+scripts/check-chapter.sh 04
+```
+
+各章の TODO を埋める前は失敗します。失敗内容が、その章で満たすべき仕様です。
 
 自作スタック側は以下に固定します。
 
