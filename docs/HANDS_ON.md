@@ -61,6 +61,29 @@ internal/hexdump
 cmd/stack
 ```
 
+この章で理解すること:
+
+`internal/tap/tap_linux.go` は TCP/IP の処理ではありません。Linux kernel に「`tap0` という仮想 Ethernet NIC の frame を、このプロセスの file descriptor で読み書きさせてください」と依頼するための薄い wrapper です。
+
+処理の流れは 5 段階です。
+
+1. `/dev/net/tun` を開く
+2. `ifreq` という Linux ioctl 用の小さな request struct を作る
+3. `ifreq.Name` に `tap0` を入れる
+4. `ifreq.Flags` に `IFF_TAP | IFF_NO_PI` を入れる
+5. `TUNSETIFF` ioctl で file descriptor と `tap0` を結びつける
+
+`TUNSETIFF` が成功した後は、`Read` すると Ethernet frame が届き、`Write` すると Ethernet frame を `tap0` へ送信できます。
+
+`IFF_TAP` と `IFF_NO_PI` の意味:
+
+- `IFF_TAP`: L2 の Ethernet frame を扱う。読み取る byte 列は Dst MAC から始まる。
+- `IFF_NO_PI`: Linux 独自の 4 byte header を付けない。教材では Ethernet header から始まる方が分かりやすい。
+
+`unsafe.Pointer` を使っている理由:
+
+Go の通常の API では ioctl に C 互換メモリを渡せません。ここだけは kernel syscall 境界なので `unsafe.Pointer(&req)` が必要です。この教材では `unsafe` を TAP 初期化の 1 箇所に閉じ込め、packet parse / marshal では使いません。
+
 実装 TODO:
 
 - `/dev/net/tun` を `unix.Open` で開く
@@ -70,6 +93,18 @@ cmd/stack
 - 読んだ byte slice を hex dump する
 
 この章のコードはスターターで実装済みです。まず動かして、TAP から Ethernet frame が読めることを確認してください。
+
+対応するコード:
+
+```go
+fd, err := unix.Open("/dev/net/tun", unix.O_RDWR, 0)
+req := ifreq{Flags: unix.IFF_TAP | unix.IFF_NO_PI}
+copy(req.Name[:], "tap0")
+unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
+file := os.NewFile(uintptr(fd), "/dev/net/tun")
+```
+
+この `file` が以後の stack から見るネットワークカードです。
 
 確認:
 
