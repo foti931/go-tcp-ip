@@ -2,7 +2,9 @@
 
 Go と Linux TAP デバイスで TCP/IP プロトコルスタックを自作するハンズオン教材です。
 
-この `main` branch には完成コードを置いていません。いきなり答えを読むのではなく、章ごとに小さく実装していくための入口です。
+この `main` branch には、ハンズオン用のスターターコードを置いています。型、定数、関数シグネチャ、TAP 読み取りループ、TODO コメントは用意済みです。
+
+読者が全部のソースコードをゼロから設計する必要はありません。各章では、TODO が付いた小さな関数を埋めていきます。
 
 完成版は `final` branch にあります。
 
@@ -14,8 +16,8 @@ git checkout final
 ## 進め方
 
 1. この branch で [docs/HANDS_ON.md](docs/HANDS_ON.md) を読む
-2. 自分で `tcpip-go/` プロジェクトを作る
-3. 各章の TODO を実装する
+2. `internal/*` の TODO を章ごとに埋める
+3. 章ごとの確認コマンドを実行する
 4. 詰まったら `final` branch の同名 package を参照する
 5. `go test ./...` と Linux TAP 上の動作確認で進める
 
@@ -33,9 +35,19 @@ nc 192.168.100.2 8080
 
 この教材の目的は「TCP/IP を packet level で理解すること」です。完成コードを最初から置くと、読者は写経ではなく眺めるだけになりがちです。
 
+ただし、完全な白紙から始める教材でもありません。`main` には以下を置いています。
+
+- package 構成
+- struct / const / error 定義
+- 関数シグネチャ
+- TAP の open 処理
+- read/write loop
+- 各章の TODO と実装ヒント
+- 最初から通る最小テスト
+
 そのため:
 
-- `main`: ハンズオンの道筋
+- `main`: ハンズオン用スターターコード
 - `final`: 完成リファレンス実装
 
 に分けています。
@@ -72,4 +84,3 @@ sudo ip link set tap0 up
 - RFC 792 ICMP
 - RFC 768 UDP
 - RFC 793 TCP
-

@@ -2,7 +2,9 @@
 
 この文書は、完成コードを読むための説明ではなく、自分で実装するための手順です。
 
-各章では、まず自分で TODO を埋めます。詰まった場合だけ `final` branch の実装を見ます。
+`main` branch にはスターターコードがあります。読者が全部のソースコードを考える必要はありません。各章では、すでに用意された型、定数、関数シグネチャ、TODO コメントに沿って、核心部分だけを埋めます。
+
+詰まった場合だけ `final` branch の同名ファイルを見ます。
 
 ```sh
 git checkout final
@@ -67,6 +69,8 @@ cmd/stack
 - `os.File.Read` で frame を読む
 - 読んだ byte slice を hex dump する
 
+この章のコードはスターターで実装済みです。まず動かして、TAP から Ethernet frame が読めることを確認してください。
+
 確認:
 
 ```sh
@@ -103,6 +107,21 @@ internal/ethernet
 - 14 bytes 未満なら error にする
 - EtherType `0x0806` と `0x0800` を const にする
 
+実装する場所:
+
+- `internal/ethernet/ethernet.go`
+- `Parse`
+- `Marshal`
+
+ヒント:
+
+```go
+copy(f.Dst[:], b[0:6])
+copy(f.Src[:], b[6:12])
+f.EtherType = binary.BigEndian.Uint16(b[12:14])
+f.Payload = b[14:]
+```
+
 確認:
 
 - `ping` 時に EtherType `0x0806` が来る
@@ -128,6 +147,15 @@ internal/arp
 - `TargetIP == 192.168.100.2` の Request だけに応答する
 - Sender と Target を入れ替えて Reply を作る
 - Ethernet の宛先 MAC は Request の送信元 MAC にする
+
+実装する場所:
+
+- `internal/arp/arp.go`
+- `internal/stack/stack.go`
+
+ヒント:
+
+ARP Reply では、`SenderMAC/SenderIP` は自作スタック、`TargetMAC/TargetIP` は Linux host です。
 
 確認:
 
@@ -158,6 +186,15 @@ internal/ipv4
 - Protocol `1`, `6`, `17` を const にする
 - `Marshal` で checksum を計算する
 
+実装する場所:
+
+- `internal/ipv4/checksum.go`
+- `internal/ipv4/ipv4.go`
+
+ヒント:
+
+IHL は 32bit word 単位なので、byte 数にするには `int(b[0]&0x0f) * 4` です。
+
 確認:
 
 - ARP 解決後、ICMP packet の Protocol が `1` として読める
@@ -182,6 +219,15 @@ internal/icmp
 - Payload をそのまま返す
 - ICMP checksum を計算する
 - Ethernet / IPv4 / ICMP を組み合わせて Reply を返す
+
+実装する場所:
+
+- `internal/icmp/icmp.go`
+- `internal/stack/stack.go`
+
+ヒント:
+
+ICMP Echo Reply は Identifier、Sequence、Payload を Request からそのままコピーします。
 
 確認:
 
@@ -208,6 +254,15 @@ internal/udp
 - SrcPort / DstPort / Length / Checksum を読む
 - pseudo header を含む checksum を計算する
 - DstPort `9000` の payload をそのまま返す
+
+実装する場所:
+
+- `internal/udp/udp.go`
+- `internal/stack/stack.go`
+
+ヒント:
+
+UDP checksum は IPv4 pseudo header を含めます。pseudo header は `SrcIP`, `DstIP`, zero, protocol, UDP length の 12 bytes です。
 
 確認:
 
@@ -236,6 +291,17 @@ internal/tcp
 - `LISTEN -> SYN_RECEIVED -> ESTABLISHED` を実装する
 - SYN が sequence number を 1 消費することを反映する
 
+実装する場所:
+
+- `internal/tcp/tcp.go`
+- `internal/tcp/checksum.go`
+- `internal/tcp/state.go`
+- `internal/stack/stack.go`
+
+ヒント:
+
+SYN を受けたら `Ack = clientSeq + 1` の SYN-ACK を返します。server 側の SYN も sequence number を 1 消費します。
+
 確認:
 
 ```sh
@@ -258,6 +324,14 @@ nc 192.168.100.2 8080
 - 受信 payload をそのまま PSH/ACK で返す
 - ACK-only packet には echo を返さない
 
+実装する場所:
+
+- `internal/stack/stack.go`
+
+ヒント:
+
+payload を受け取ったら `remoteSeq += len(payload)` です。返信 payload は受信 payload と同じ byte slice で構いません。
+
 確認:
 
 ```sh
@@ -279,6 +353,14 @@ nc 192.168.100.2 8080
 - FIN が sequence number を 1 消費することを反映する
 - FIN/ACK を返す
 - 最後の ACK を受けたら LISTEN に戻す
+
+実装する場所:
+
+- `internal/stack/stack.go`
+
+ヒント:
+
+FIN も SYN と同じく sequence number を 1 消費します。
 
 確認:
 
@@ -331,4 +413,3 @@ tcp.port == 8080
 - IPv6
 - fuzzing
 - property-based testing
-
