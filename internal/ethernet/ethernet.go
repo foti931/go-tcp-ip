@@ -25,17 +25,34 @@ type Frame struct {
 
 func Parse(b []byte) (Frame, error) {
 	// TODO(chapter-02):
-	// 1. len(b) が HeaderLen 未満なら ErrShortFrame
-	// 2. b[0:6] を Dst、b[6:12] を Src に copy
-	// 3. binary.BigEndian.Uint16(b[12:14]) を EtherType にする
-	// 4. b[14:] を Payload にする
+	//
+	// Ethernet frame の先頭 14 byte は Ethernet header です。
+	//
+	// offset   slice      bytes  意味
+	// 0        b[0:6]     6      宛先 MAC address
+	// 6        b[6:12]    6      送信元 MAC address
+	// 12       b[12:14]   2      EtherType
+	// 14       b[14:]     可変   次の protocol の中身
+	//
+	// 例:
+	//   ff ff ff ff ff ff  02 00 00 00 00 01  08 06  ...
+	//   |宛先 broadcast |  |送信元 MAC      |  |ARP |  |ARP packet
+	//
+	// EtherType は 2 byte の整数なので binary.BigEndian で読みます。
+	// MAC address は [6]byte なので copy で配列へ移します。
 	return Frame{}, ErrShortFrame
 }
 
 func Marshal(f Frame) ([]byte, error) {
 	// TODO(chapter-02):
-	// HeaderLen + len(f.Payload) の buffer を作り、
-	// Dst/Src/EtherType/Payload を Ethernet header 順に詰める。
+	//
+	// Parse の逆です。HeaderLen + len(f.Payload) の byte slice を作り、
+	// 次の順番で詰めます。
+	//
+	// out[0:6]   = 宛先 MAC
+	// out[6:12]  = 送信元 MAC
+	// out[12:14] = EtherType
+	// out[14:]   = Payload
 	return nil, errors.New("ethernet: TODO chapter-02 Marshal")
 }
 
